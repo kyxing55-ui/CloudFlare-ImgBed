@@ -1,0 +1,48 @@
+name: Sync fork with upstream
+
+on:
+  schedule:
+    # 每 6 小时同步一次，时间是 UTC
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge upstream/main into fork main
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git remote add upstream https://github.com/MarSeventh/CloudFlare-ImgBed.git
+          git fetch upstream main
+          git fetch origin main
+
+          git checkout main
+          git reset --hard origin/main
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream/main"
+            exit 0
+          fi
+
+          git merge --no-edit upstream/main
+          git push origin main
